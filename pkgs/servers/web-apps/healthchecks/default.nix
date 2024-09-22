@@ -1,11 +1,12 @@
-{ lib
-, writeText
-, fetchFromGitHub
-, nixosTests
-, python3
+{
+  lib,
+  writeText,
+  fetchFromGitHub,
+  nixosTests,
+  python311,
 }:
 let
-  py = python3.override {
+  py = python311.override {
     self = py;
     packageOverrides = final: prev: {
       django = prev.django_5;
@@ -14,14 +15,14 @@ let
 in
 py.pkgs.buildPythonApplication rec {
   pname = "healthchecks";
-  version = "3.4";
+  version = "3.6";
   format = "other";
 
   src = fetchFromGitHub {
     owner = "healthchecks";
     repo = pname;
-    rev = "refs/tags/v${version}";
-    sha256 = "sha256-hiuw7XfCDy+9fzuQMaeN9+XsENeBI1RNXy8IM1HIFhI=";
+    rev = "5a19f9658ac557ce4ef4c3b8e0c33fc2dd20d239";
+    sha256 = "sha256-aKt9L3ZgZ8HffcNNJaR+hAI38raWuLp2q/6+rvkl2pM=";
   };
 
   propagatedBuildInputs = with py.pkgs; [
@@ -34,7 +35,7 @@ py.pkgs.buildPythonApplication rec {
     fido2
     minio
     oncalendar
-    psycopg2
+    psycopg
     pycurl
     pydantic
     pyotp
@@ -64,15 +65,16 @@ py.pkgs.buildPythonApplication rec {
     import os
 
     STATIC_ROOT = os.getenv("STATIC_ROOT")
+    SECURE_PROXY_SSL_HEADER = (lambda x: x if x is None else tuple(re.sub(r"[\(\)\"]","", x).replace(", ", ",").split(",")))(os.getenv("SECURE_PROXY_SSL_HEADER", None))
 
-    ${lib.concatLines (map
-      (secret: ''
+    ${lib.concatLines (
+      map (secret: ''
         ${secret}_FILE = os.getenv("${secret}_FILE")
         if ${secret}_FILE:
             with open(${secret}_FILE, "r") as file:
                 ${secret} = file.readline()
-      '')
-      secrets)}
+      '') secrets
+    )}
   '';
 
   installPhase = ''
