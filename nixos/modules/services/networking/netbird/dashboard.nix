@@ -172,9 +172,12 @@ in
             tryFiles = "$uri $uri.html $uri/ =404";
           };
 
-          "/404.html".extraConfig = ''
-            internal;
-          '';
+          "/404.html" = {
+            root = cfg.finalDrv;
+            extraConfig = ''
+              internal;
+            '';
+          };
         };
 
         extraConfig = ''
