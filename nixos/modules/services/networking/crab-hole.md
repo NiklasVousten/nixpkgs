@@ -45,13 +45,13 @@ The following is a basic nix config using UDP as a downstream and Cloudflare as 
             socket_addr = "1.1.1.1:853";
             protocol = "tls";
             tls_dns_name = "1dot1dot1dot1.cloudflare-dns.com";
-            trust_nx_responses = false;
+            trust_negative_responses = false;
           }
           {
             socket_addr = "[2606:4700:4700::1111]:853";
             protocol = "tls";
             tls_dns_name = "1dot1dot1dot1.cloudflare-dns.com";
-            trust_nx_responses = false;
+            trust_negative_responses = false;
           }
         ];
       };
@@ -162,15 +162,10 @@ This can look like the following example.
 ```nix
 {
   services.crab-hole.settings.upstream.options = {
-    validate = false;
+    validate = true;
   };
 }
 ```
-
-#### DNSSEC Issues {#module-services-crab-hole-dnssec}
-Due to an upstream issue of [hickory-dns](https://github.com/hickory-dns/hickory-dns/issues/2429), sites without DNSSEC will not be resolved if `validate = true`.
-Only DNSSEC capable sites will be resolved with this setting.
-To prevent this, set `validate = false` or omit the `[upstream.options]`.
 
 ### API {#module-services-crab-hole-api}
 The API allows a user to fetch statistic and information about the crab-hole instance.
@@ -179,8 +174,7 @@ Basic information is available for everyone, while more detailed information is 
 ```nix
 {
   services.crab-hole.settings.api = {
-    listen = "127.0.0.1";
-    port = 8080;
+    listener = "127.0.0.1:8080";
     # optional (default = false)
     show_doc = true; # OpenAPI doc loads content from third party websites
     # optional

@@ -307,9 +307,6 @@
   "module-services-crab-hole-configuration": [
     "index.html#module-services-crab-hole-configuration"
   ],
-  "module-services-crab-hole-dnssec": [
-    "index.html#module-services-crab-hole-dnssec"
-  ],
   "module-services-crab-hole-downstream": [
     "index.html#module-services-crab-hole-downstream"
   ],
@@ -335,7 +332,8 @@
     "index.html#module-services-crab-hole-udp"
   ],
   "module-services-crab-hole-upstream-options": [
-    "index.html#module-services-crab-hole-upstream-options"
+    "index.html#module-services-crab-hole-upstream-options",
+    "index.html#module-services-crab-hole-dnssec"
   ],
   "module-services-firefox-syncserver-clients": [
     "index.html#module-services-firefox-syncserver-clients"

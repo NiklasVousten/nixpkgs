@@ -9,6 +9,65 @@ let
 
   settingsFormat = pkgs.formats.toml { };
 
+  hasOldTrustNx =
+    cfg.settings ? upstream
+    && cfg.settings.upstream ? name_servers
+    && lib.any (ns: ns ? trust_nx_responses) cfg.settings.upstream.name_servers;
+
+  hasOldApiListenPort =
+    cfg.settings ? api
+    && ((cfg.settings.api ? listen) || (cfg.settings.api ? port))
+    && !(cfg.settings.api ? listener);
+
+  updatedSettings =
+    let
+      rewriteNameServer =
+        ns:
+        if (ns ? trust_nx_responses) && !(ns ? trust_negative_responses) then
+          (removeAttrs ns [ "trust_nx_responses" ])
+          // {
+            trust_negative_responses = ns.trust_nx_responses;
+          }
+        else
+          ns;
+
+      rewriteUpstream =
+        upstream:
+        if upstream ? name_servers then
+          upstream // { name_servers = map rewriteNameServer upstream.name_servers; }
+        else
+          upstream;
+
+      mkListener =
+        listen: port:
+        let
+          host = toString listen;
+          needsBrackets = lib.hasInfix ":" host && !(lib.hasPrefix "[" host) && !(lib.hasSuffix "]" host);
+        in
+        "${if needsBrackets then "[${host}]" else host}:${toString port}";
+
+      rewriteApi =
+        api:
+        if (api ? listener) then
+          api
+        else if (api ? listen) && (api ? port) then
+          (removeAttrs api [
+            "listen"
+            "port"
+          ])
+          // {
+            listener = mkListener api.listen api.port;
+          }
+        else
+          api;
+
+      rewriteSettings =
+        s:
+        (if s ? upstream then s // { upstream = rewriteUpstream s.upstream; } else s)
+        // (if s ? api then { api = rewriteApi s.api; } else { });
+    in
+    rewriteSettings cfg.settings;
+
   checkConfig =
     file:
     pkgs.runCommand "check-config"
@@ -64,8 +123,7 @@ in
           ];
           api = {
             admin_key = "1234";
-            listen = "127.0.0.1";
-            port = 8080;
+            listener = "127.0.0.1:8080";
             show_doc = true;
           };
           blocklist = {
@@ -85,17 +143,17 @@ in
                 protocol = "tls";
                 socket_addr = "[2606:4700:4700::1111]:853";
                 tls_dns_name = "1dot1dot1dot1.cloudflare-dns.com";
-                trust_nx_responses = false;
+                trust_negative_responses = false;
               }
               {
                 protocol = "tls";
                 socket_addr = "1.1.1.1:853";
                 tls_dns_name = "1dot1dot1dot1.cloudflare-dns.com";
-                trust_nx_responses = false;
+                trust_negative_responses = false;
               }
             ];
             options = {
-              validate = false;
+              validate = true;
             };
           };
         };
@@ -136,13 +194,17 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # Warning due to DNSSec issue in crab-hole
-    warnings = lib.optional (cfg.settings.upstream.options.validate or false) ''
-      Validate options will ONLY allow DNSSec domains. See https://github.com/LuckyTurtleDev/crab-hole/issues/29
-    '';
+    # Warning due to config change in crab-hole 0.2.0
+    warnings =
+      lib.optional hasOldTrustNx ''
+        `services.crab-hole.settings.upstream.name_servers.*.trust_nx_responses` has been renamed to `services.crab-hole.settings.upstream.name_servers.*.trust_negative_responses`.
+      ''
+      ++ lib.optional hasOldApiListenPort ''
+        `services.crab-hole.settings.api.listen`/`port` has been renamed to `services.crab-hole.settings.api.listener`.
+      '';
 
     services.crab-hole.configFile = lib.mkDefault (
-      checkConfig (settingsFormat.generate "crab-hole.toml" cfg.settings)
+      checkConfig (settingsFormat.generate "crab-hole.toml" updatedSettings)
     );
     environment.etc."crab-hole.toml".source = cfg.configFile;
 
